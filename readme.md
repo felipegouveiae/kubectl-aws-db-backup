@@ -1,0 +1,1 @@
+this is a docker image containing AWS CLI, MySQL client, Mongo 6 database tools, kubectl and zip installed.

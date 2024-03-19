@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mongodb-job-sample
+  namespace: your-namespace
+spec:
+  schedule: "30 4 * * *"
+  successfulJobsHistoryLimit: 1
+  suspend: false
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: sa-default
+          restartPolicy: Never
+          volumes:
+            - name: temp-volume
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes: [ "ReadWriteOnce" ]
+                    resources:
+                      requests:
+                        storage: 5Gi          
+          containers:
+          - name: backup
+            image: felipegouveiae/kubectl-aws-db-backup
+            imagePullPolicy: Always
+            volumeMounts:
+            - mountPath: "/tmp"
+              name: temp-volume
+            envFrom:
+              - secretRef:
+                  name: ecr-registry-helper-secrets
+              - configMapRef:
+                  name: ecr-registry-helper-cm
+              - configMapRef:
+                  name: mongodb-configmap
+            command:
+              - /bin/bash
+              - -c
+              - |-
+
+                timestamp=$(date +%s)
+                rawfilename=mongodb-$timestamp
+                filename=/tmp/$rawfilename
+
+                echo 'dumping db...'
+ 
+                mongodump \
+                    --uri "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@valorum-mongodb-service" \
+                    --gzip \
+                    --archive=$filename.archive
+
+                echo 'Uploading to S3...'
+
+                aws s3api put-object \
+                  --bucket your-bucket-name \
+                  --key folder/$rawfilename.archive \
+                  --body $filename.archive
+                

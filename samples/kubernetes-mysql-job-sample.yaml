@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mysql-job-sample
+  namespace: your-namespace
+spec:
+  schedule: "0 5 * * *"
+  successfulJobsHistoryLimit: 5
+  suspend: false
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: sa-default
+          containers:
+          - name: backup
+            image: felipegouveiae/kubectl-aws-db-backup
+            imagePullPolicy: Always
+            # load AWS Creds
+            # load MySQL
+            envFrom:
+              - configMapRef:
+                  name: mariadb-configmap
+            command:
+              - /bin/bash
+              - -c
+              - |-
+
+                timestamp=$(date +%s)
+                rawfilename=your-db-name-$timestamp.sql
+                filename=/tmp/$rawfilename
+
+                echo 'dumping db...'
+
+                mysqldump -uroot -p$MARIADB_ROOT_PASSWORD -hmariadb-service \
+                    --opt \
+                    --lock-tables=false \
+                    --set-gtid-purged=OFF \
+                    --all-databases > $filename
+
+                echo 'zipping db...'
+
+                zip $filename.zip $filename
+
+                echo 'Uploading to S3...'
+
+                aws s3api put-object --bucket your-bucket-name --key $rawfilename.zip --body $filename.zip
+                
+          restartPolicy: Never
