@@ -21,12 +21,12 @@ RUN apt-get update -qq && \
         apt-transport-https \
         ca-certificates \
         curl \
+        mysql-client \
+        zip \
         gpg-agent && \
     curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && \
     echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list && \
     apt-get update -qq  && \
-    apt-get install -y -qq kubectl mysql-client zip
-
-RUN apt-get install -y -qq jq && \    
+    apt-get install -y -qq kubectl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*

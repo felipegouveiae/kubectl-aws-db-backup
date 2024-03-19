@@ -19,6 +19,8 @@ docker tag kubectl-aws-db-backup:amd64 felipegouveiae/kubectl-aws-db-backup:amd6
 
 docker push -a felipegouveiae/kubectl-aws-db-backup
 
+docker manifest rm felipegouveiae/kubectl-aws-db-backup:latest
+
 docker manifest create felipegouveiae/kubectl-aws-db-backup:latest \
     felipegouveiae/kubectl-aws-db-backup:amd64 \
     felipegouveiae/kubectl-aws-db-backup:arm64
