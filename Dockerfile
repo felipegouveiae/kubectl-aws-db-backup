@@ -33,6 +33,13 @@ RUN curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | gpg --d
     apt-get update -qq  && \
     apt-get install -y -qq kubectl
 
+# installing PostgreSQL client (pg_dump) from the official PGDG apt repo so the
+# client is new enough to dump modern servers (pg_dump must be >= server version)
+RUN curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/keyrings/postgresql-apt-keyring.gpg && \
+    echo 'deb [signed-by=/etc/apt/keyrings/postgresql-apt-keyring.gpg] https://apt.postgresql.org/pub/repos/apt jammy-pgdg main' | tee /etc/apt/sources.list.d/pgdg.list && \
+    apt-get update -qq && \
+    apt-get install -y -qq postgresql-client-16
+
 # Installing Mongo Toools (mongodump - https://github.com/mongodb/mongo/tree/25225db95574916fecab3af75b184409f8713aef
 RUN set -eux; \
     \
