@@ -4,26 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A single Docker image (`felipegouveiae/kubectl-aws-db-backup`) that bundles the AWS CLI v2, MySQL client (`mysqldump`), PostgreSQL client (`pg_dump`), MongoDB 6 database tools (`mongodump`), `kubectl`, and `zip`. There is no application code — the image is a toolbox. The actual backup logic lives in the `command:` blocks of the Kubernetes `CronJob` manifests under `samples/`, which run inside this image on a schedule: dump a database to `/tmp`, compress it, and upload to S3 via `aws s3api put-object`.
+A single Docker image (`felipegouveiae/kubectl-aws-db-backup`) that bundles the AWS CLI v2, MySQL client (`mysqldump`), PostgreSQL client (`pg_dump`), MongoDB database tools (`mongodump`), `kubectl`, `bash`, and `zip`. There is no application code — the image is a toolbox. The actual backup logic lives in the `command:` blocks of the Kubernetes `CronJob` manifests under `samples/`, which run inside this image on a schedule: dump a database to `/tmp`, compress it, and upload to S3 via `aws s3api put-object`.
 
 ## Build & publish
 
-`build.sh` does everything (build + push). Prerequisites: Docker with `buildx`, and Docker Hub push access to `felipegouveiae/kubectl-aws-db-backup`.
+`build.sh` does everything (Docker Hub login + build + push) and takes the image tag as its first argument. Prerequisites: Docker with `buildx`, and Docker Hub push access to `felipegouveiae/kubectl-aws-db-backup`.
 
 ```bash
-./build.sh
+./build.sh latest      # or ./build.sh v1.0, etc.
 ```
 
-The script:
-1. Downloads the AWS CLI installers for both `linux/arm64` (aarch64) and `linux/amd64` (x86_64) into `linux/<arch>/awscliv2.zip` (skipped if already present — delete them to force a re-download).
-2. Builds a per-arch image with `docker buildx build --platform ...`.
-3. Tags, pushes both arches, then assembles and pushes a multi-arch `:latest` manifest.
+The script builds a per-arch image with `docker buildx build --platform ...` for both `linux/arm64` and `linux/amd64`, tags them `…:$TAG-arm64` / `…:$TAG-amd64`, pushes both, then assembles and pushes a multi-arch `…:$TAG` manifest.
 
-The Dockerfile expects the AWS CLI zip at `$TARGETPLATFORM/awscliv2.zip` (e.g. `linux/amd64/awscliv2.zip`), which is why `build.sh` lays the files out under `linux/`. Both `linux/` and `*.zip` are gitignored.
+Note: `build.sh` still downloads `awscliv2.zip` into `linux/<arch>/`, but that is now **dead code** — the Alpine Dockerfile installs AWS CLI from `apk`, so nothing consumes the zip. It can be removed. Both `linux/` and `*.zip` are gitignored.
 
 ## Architecture notes
 
-- **Multi-stage Dockerfile**: the first stage unzips the AWS CLI installer; the final `ubuntu:22.04` stage installs it plus the DB clients and kubectl. MongoDB tools are pinned to `MONGO_VERSION 6.0.14` and installed from MongoDB's `6.0` apt repo; kubectl comes from the Kubernetes `v1.29` stable apt repo; the PostgreSQL client is `postgresql-client-16` from the official PGDG apt repo (not Ubuntu's default `postgresql-client`, which is older). `pg_dump` must be at least the server version, so bump this when you need to back up a newer server.
+- **Single-stage Alpine Dockerfile**: everything is installed from Alpine's own repos in one `apk add`, for both amd64 and arm64 — no glibc-compat shim and no downloaded AWS CLI installer. This works because Alpine 3.20 packages `aws-cli` 2.x built for musl (the usual blocker for AWS CLI v2 on Alpine). `postgresql16-client` provides `pg_dump` 16; `mongodb-tools` provides the 100.x MongoDB Database Tools; `kubectl` and `mysql-client` come from the community repo. Versions track the pinned Alpine release (`FROM alpine:3.20`) — bump the base image to move them.
+- **`mysqldump` is MariaDB's on Alpine**, not Oracle MySQL. It does **not** support the MySQL-only `--set-gtid-purged` flag used in `samples/kubernetes-mysql-job-sample.yaml` — that flag must be dropped when the sample runs against this image.
+- **`bash` is explicitly installed** because the sample CronJobs invoke `/bin/bash`, which Alpine does not ship by default (it has busybox `sh`).
 - **Where behavior actually lives**: to change what gets backed up or how, edit the `samples/*.yaml` CronJob `command:` scripts, not the image. The image only needs rebuilding when a bundled tool (versions, adding a client) changes.
 - **Configuration is injected at runtime** via `envFrom` (Kubernetes ConfigMaps/Secrets) — DB credentials, hostnames, S3 bucket/key. The Dockerfile bakes in no secrets or config.
 - **`/tmp` sizing**: the MongoDB sample mounts an ephemeral volume at `/tmp` because dumps can exceed the container's default writable layer; keep this in mind when editing dump paths (both samples write to `/tmp`).

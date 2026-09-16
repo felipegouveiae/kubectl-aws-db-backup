@@ -1,1 +1,1 @@
-this is a docker image containing AWS CLI, MySQL client, PostgreSQL client, Mongo 6 database tools, kubectl and zip installed.
+this is an Alpine-based docker image containing AWS CLI v2, MySQL client, PostgreSQL client, MongoDB database tools, kubectl, bash and zip installed.
