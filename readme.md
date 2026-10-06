@@ -1,1 +1,1 @@
-this is an Alpine-based docker image containing AWS CLI v2, MySQL client, PostgreSQL client, MongoDB database tools, kubectl, bash and zip installed.
+This is an Oracle Linux 9-based docker image (linux/amd64 and linux/arm64) containing AWS CLI v2, the official MySQL 8.4 client, PostgreSQL 16 and 17 clients, MongoDB database tools, kubectl, bash and zip installed.

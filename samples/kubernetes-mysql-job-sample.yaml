@@ -36,6 +36,7 @@ spec:
                     --opt \
                     --lock-tables=false \
                     --set-gtid-purged=OFF \
+                    --column-statistics=0 \
                     --all-databases > $filename
 
                 echo 'zipping db...'
